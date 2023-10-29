@@ -43,7 +43,24 @@ class PromptConstructor(object):
 
         """Return the require format for an API"""
         message: list[dict[str, str]] | str
-        if "openai" in self.lm_config.provider:
+        if "huggingface" in self.lm_config.provider:
+            message = f"{intro}\n\n"
+            message += "Here are a few examples:\n"
+            for example in examples:
+                message += f"Observation\n:{example[0]}\n\n"
+                message += f"Action: {example[1]}\n\n"
+            message += "Now make prediction given the observation\n\n"
+            message += f"Observation\n:{current}\n\n"
+            message += "Action:"
+            self.tokenizer.padding_side = "left" # For generation padding tokens should be on the left
+            print(message)
+            lang_x = self.tokenizer(
+                [message],
+                return_tensors="pt",
+            )
+
+            return lang_x
+        elif "openai" in self.lm_config.provider:
             if self.lm_config.mode == "chat":
                 message = [{"role": "system", "content": intro}]
                 for (x, y) in examples:
@@ -120,7 +137,7 @@ class DirectPromptConstructor(PromptConstructor):
         self,
         instruction_path: str | Path,
         lm_config: lm_config.LMConfig,
-        tokenizer: tiktoken.core.Encoding,
+        tokenizer,
     ):
         super().__init__(instruction_path, lm_config, tokenizer)
 
@@ -137,6 +154,7 @@ class DirectPromptConstructor(PromptConstructor):
         keywords = self.instruction["meta_data"]["keywords"]
         state_info: StateInfo = trajectory[-1]  # type: ignore[assignment]
 
+        image_obs = state_info["observation"]["image"]
         obs = state_info["observation"][self.obs_modality]
         max_obs_length = self.lm_config.gen_config["max_obs_length"]
         if max_obs_length:
@@ -151,6 +169,7 @@ class DirectPromptConstructor(PromptConstructor):
             objective=intent,
             url=self.map_url_to_real(url),
             observation=obs,
+            image=image_obs,
             previous_action=previous_action_str,
         )
 

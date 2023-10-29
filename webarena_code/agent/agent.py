@@ -5,6 +5,11 @@ from typing import Any
 import tiktoken
 from beartype import beartype
 
+from open_flamingo import create_model_and_transforms
+from huggingface_hub import hf_hub_download
+import torch
+from PIL import Image
+
 from agent.prompts import *
 from browser_env import Trajectory
 from browser_env.actions import (
@@ -103,11 +108,17 @@ class PromptAgent(Agent):
         action_set_tag: str,
         lm_config: lm_config.LMConfig,
         prompt_constructor: PromptConstructor,
+        model=None,
+        image_processor=None,
+        tokenizer=None,
     ) -> None:
         super().__init__()
         self.lm_config = lm_config
         self.prompt_constructor = prompt_constructor
         self.action_set_tag = action_set_tag
+        self.model = model
+        self.image_processor = image_processor
+        self.tokenizer = tokenizer
 
     def set_action_set_tag(self, tag: str) -> None:
         self.action_set_tag = tag
@@ -120,7 +131,25 @@ class PromptAgent(Agent):
             trajectory, intent, meta_data
         )
         lm_config = self.lm_config
-        if lm_config.provider == "openai":
+        if lm_config.provider == "huggingface":
+            last_obs = trajectory[-1]["observation"] # get last state info dict from trajectory
+            obs_image = Image.fromarray(last_obs["image"])
+            example_image = Image.open("C:\\Users\\Sheryl\\Documents\mmml\\web-agent-reasoning\\webarena_code\\example_imgs\\hp_fax.PNG")
+            vision_x = [self.image_processor(example_image).unsqueeze(0), self.image_processor(obs_image).unsqueeze(0)]
+            vision_x = torch.cat(vision_x, dim=0)
+            vision_x = vision_x.unsqueeze(1).unsqueeze(0)
+            print("generating response")
+            generated_text = self.model.generate(
+                vision_x=vision_x,
+                lang_x=prompt["input_ids"],
+                attention_mask=prompt["attention_mask"],
+                max_new_tokens=lm_config.gen_config["max_tokens"],
+                num_beams=3,
+            )
+            response = self.tokenizer.decode(generated_text[0])
+            print(response)
+
+        elif lm_config.provider == "openai":
             if lm_config.mode == "chat":
                 response = generate_from_openai_chat_completion(
                     messages=prompt,
@@ -181,6 +210,13 @@ def construct_llm_config(args: argparse.Namespace) -> lm_config.LMConfig:
         llm_config.gen_config["max_tokens"] = args.max_tokens
         llm_config.gen_config["stop_token"] = args.stop_token
         llm_config.gen_config["max_obs_length"] = args.max_obs_length
+    if args.provider == "huggingface":
+        llm_config.gen_config["temperature"] = args.temperature
+        llm_config.gen_config["top_p"] = args.top_p
+        llm_config.gen_config["context_length"] = args.context_length
+        llm_config.gen_config["max_tokens"] = args.max_tokens
+        llm_config.gen_config["stop_token"] = args.stop_token
+        llm_config.gen_config["max_obs_length"] = args.max_obs_length
     else:
         raise NotImplementedError(f"provider {args.provider} not implemented")
     return llm_config
@@ -195,7 +231,8 @@ def construct_agent(args: argparse.Namespace) -> Agent:
     elif args.agent_type == "prompt":
         with open(args.instruction_path) as f:
             constructor_type = json.load(f)["meta_data"]["prompt_constructor"]
-        tokenizer = tiktoken.encoding_for_model(llm_config.model)
+        tokenizer = tiktoken.get_encoding(llm_config.model)
+        # tokenizer = tiktoken.encoding_for_model(llm_config.model)
         prompt_constructor = eval(constructor_type)(
             args.instruction_path, lm_config=llm_config, tokenizer=tokenizer
         )
@@ -204,6 +241,32 @@ def construct_agent(args: argparse.Namespace) -> Agent:
             lm_config=llm_config,
             prompt_constructor=prompt_constructor,
         )
+    elif args.agent_type == "generation":
+        with open(args.instruction_path) as f:
+            constructor_type = json.load(f)["meta_data"]["prompt_constructor"]
+
+            flamingo_model, image_processor, flam_tokenizer = create_model_and_transforms(
+                clip_vision_encoder_path="ViT-L-14",
+                clip_vision_encoder_pretrained="openai",
+                lang_encoder_path="anas-awadalla/mpt-1b-redpajama-200b",
+                tokenizer_path="anas-awadalla/mpt-1b-redpajama-200b",
+                cross_attn_every_n_layers=1
+            )
+
+            checkpoint_path = hf_hub_download("openflamingo/" + args.model, "checkpoint.pt")
+            flamingo_model.load_state_dict(torch.load(checkpoint_path), strict=False)
+
+            prompt_constructor = eval(constructor_type)(
+                args.instruction_path, lm_config=llm_config, tokenizer=flam_tokenizer
+            )
+            agent = PromptAgent(
+                action_set_tag=args.action_set_tag,
+                lm_config=llm_config,
+                prompt_constructor=prompt_constructor,
+                model=flamingo_model,
+                image_processor=image_processor,
+                tokenizer=flam_tokenizer,
+            )
     else:
         raise NotImplementedError(
             f"agent type {args.agent_type} not implemented"

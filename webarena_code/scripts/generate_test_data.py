@@ -21,7 +21,8 @@ def main() -> None:
         f.write(raw)
     # split to multiple files
     data = json.loads(raw)
-    for idx, item in enumerate(data):
+    for item in data:
+        idx = item['task_id']
         with open(os.path.join("..\\config_files", f"{idx}.json"), "w") as f:
             json.dump(item, f, indent=2)
 

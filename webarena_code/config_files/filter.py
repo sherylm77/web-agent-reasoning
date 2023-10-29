@@ -1,13 +1,11 @@
 import json
 
-f = open('test.raw.json')
+f = open('test_shop.json')
 json_data = json.load(f)
 
-shopping = []
+ids = []
 
 for item in json_data:
-    if item['sites'] == ["shopping"]:
-        shopping.append(item)
+    ids.append(item['task_id'])
 
-s = open('shop.json', "w")
-json.dump(shopping, s)
+print(ids)

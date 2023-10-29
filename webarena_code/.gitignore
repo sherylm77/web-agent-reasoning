@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+webarena_results/
+webarena_results_flam/
 # C extensions
 *.so
 

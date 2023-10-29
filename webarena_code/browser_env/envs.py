@@ -136,6 +136,8 @@ class ScriptBrowserEnv(Env[dict[str, Observation], Action]):
             instance_config = {}
 
         storage_state = instance_config.get("storage_state", None)
+        # TODO: REMOVE LATER
+        # storage_state = "web-agent-reasoning\\webarena_code\\.auth\\shopping_state.json"
         start_url = instance_config.get("start_url", None)
         geolocation = instance_config.get("geolocation", None)
 

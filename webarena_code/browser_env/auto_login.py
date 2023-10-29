@@ -6,7 +6,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 import sys
-sys.path.append("C:\\Users\\Sheryl\\Documents\\mmml\\webarena\\webarena")
+sys.path.append("C:\\Users\\Sheryl\\Documents\\mmml\\web-agent-reasoning\\webarena_code")
 import os
 
 from browser_env.env_config import (

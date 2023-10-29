@@ -88,11 +88,11 @@ def config() -> argparse.Namespace:
     parser.add_argument("--max_steps", type=int, default=30)
 
     # agent config
-    parser.add_argument("--agent_type", type=str, default="prompt")
+    parser.add_argument("--agent_type", type=str, default="generation")
     parser.add_argument(
         "--instruction_path",
         type=str,
-        default="agents/prompts/state_action_agent.json",
+        default="web-agent-reasoning\\webarena_code\\agent\\prompts\\jsons\\p_direct_id_actree_2s_flam.json",
     )
     parser.add_argument(
         "--parsing_failure_th",
@@ -108,9 +108,9 @@ def config() -> argparse.Namespace:
     )
 
     # lm config
-    parser.add_argument("--provider", type=str, default="openai")
-    parser.add_argument("--model", type=str, default="gpt-3.5-turbo-0613")
-    parser.add_argument("--mode", type=str, default="chat")
+    parser.add_argument("--provider", type=str, default="huggingface")
+    parser.add_argument("--model", type=str, default="OpenFlamingo-3B-vitl-mpt1b")
+    parser.add_argument("--mode", type=str, default="generation")
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_p", type=float, default=0.9)
     parser.add_argument("--context_length", type=int, default=0)
@@ -128,7 +128,7 @@ def config() -> argparse.Namespace:
     parser.add_argument("--test_end_idx", type=int, default=1000)
 
     # logging related
-    parser.add_argument("--result_dir", type=str, default="")
+    parser.add_argument("--result_dir", type=str, default="webarena_results_flam")
     args = parser.parse_args()
 
     # check the whether the action space is compatible with the observation space
@@ -226,7 +226,7 @@ def test(
     )
 
     for config_file in config_file_list:
-        try:
+        # try:
             render_helper = RenderHelper(
                 config_file, args.result_dir, args.action_set_tag
             )
@@ -310,19 +310,19 @@ def test(
                     Path(args.result_dir) / "traces" / f"{task_id}.zip"
                 )
 
-        except openai.error.OpenAIError as e:
-            logger.info(f"[OpenAI Error] {repr(e)}")
-        except Exception as e:
-            logger.info(f"[Unhandled Error] {repr(e)}]")
-            import traceback
+        # except openai.error.OpenAIError as e:
+        #     logger.info(f"[OpenAI Error] {repr(e)}")
+        # except Exception as e:
+        #     logger.info(f"[Unhandled Error] {repr(e)}]")
+        #     import traceback
 
-            # write to error file
-            with open(Path(args.result_dir) / "error.txt", "a") as f:
-                f.write(f"[Config file]: {config_file}\n")
-                f.write(f"[Unhandled Error] {repr(e)}\n")
-                f.write(traceback.format_exc())  # write stack trace to file
+        #     # write to error file
+        #     with open(Path(args.result_dir) / "error.txt", "a") as f:
+        #         f.write(f"[Config file]: {config_file}\n")
+        #         f.write(f"[Unhandled Error] {repr(e)}\n")
+        #         f.write(traceback.format_exc())  # write stack trace to file
 
-        render_helper.close()
+            render_helper.close()
 
     env.close()
     logger.info(f"Average score: {sum(scores) / len(scores)}")
@@ -382,10 +382,25 @@ if __name__ == "__main__":
     test_file_list = []
     st_idx = args.test_start_idx
     ed_idx = args.test_end_idx
-    for i in range(st_idx, ed_idx):
-        test_file_list.append(f"config_files/{i}.json")
+    # skip 241, 242 because of rendering issue
+    indices = [21]
+    # , 22, 23, 24, 25, 26, 47, 48, 49, 50, 51, 96, 117, 118, 124, 125, 126, 
+    # 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 158, 159, 160, 161, 162, 163, 164, 
+    # 165, 166, 167, 188, 189, 190, 191, 192, 225, 226, 227, 228, 229, 230, 231, 232, 233, 
+    # 234, 235, 238, 239, 240, 260, 261, 262, 263, 264, 269, 270, 271, 272, 273, 
+    # 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 298, 299, 300, 301, 
+    # 302, 313, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 
+    # 334, 335, 336, 337, 338, 351, 352, 353, 354, 355, 358, 359, 360, 361, 362, 368, 376, 
+    # 384, 385, 386, 387, 388, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 465, 466, 
+    # 467, 468, 469, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 
+    # 520, 521, 528, 529, 530, 531, 532, 571, 572, 573, 574, 575, 585, 586, 587, 588, 589, 
+    # 653, 654, 655, 656, 657, 689, 690, 691, 692, 693, 792, 793, 794, 795, 796, 797, 798]
+    for i in indices:
+        test_file_list.append(f"config_files\\{i}.json")
+        # test_file_list.append(f"web-agent-reasoning\\webarena_code\\config_files\\{i}.json")
     test_file_list = get_unfinished(test_file_list, args.result_dir)
     print(f"Total {len(test_file_list)} tasks left")
+    # exit(0)
     args.render = True
     args.render_screenshot = True
     args.save_trace_enabled = True

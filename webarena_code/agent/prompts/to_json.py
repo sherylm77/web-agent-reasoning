@@ -4,7 +4,7 @@ import json
 import os
 
 import sys
-sys.path.append("C:\\Users\\Sheryl\\Documents\\mmml\\webarena\\webarena")
+sys.path.append("C:\\Users\\Sheryl\\Documents\\mmml\\web-agent-reasoning\\webarena_code")
 
 
 # use the current directory as the root
