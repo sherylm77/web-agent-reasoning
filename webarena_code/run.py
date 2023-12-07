@@ -88,11 +88,11 @@ def config() -> argparse.Namespace:
     parser.add_argument("--max_steps", type=int, default=30)
 
     # agent config
-    parser.add_argument("--agent_type", type=str, default="generation")
+    parser.add_argument("--agent_type", type=str, default="prompt")
     parser.add_argument(
         "--instruction_path",
         type=str,
-        default="web-agent-reasoning\\webarena_code\\agent\\prompts\\jsons\\p_direct_id_actree_2s_flam.json",
+        default="agent\\prompts\\jsons\\p_cot_id_actree_2s.json",
     )
     parser.add_argument(
         "--parsing_failure_th",
@@ -108,9 +108,9 @@ def config() -> argparse.Namespace:
     )
 
     # lm config
-    parser.add_argument("--provider", type=str, default="huggingface")
-    parser.add_argument("--model", type=str, default="OpenFlamingo-3B-vitl-mpt1b")
-    parser.add_argument("--mode", type=str, default="generation")
+    parser.add_argument("--provider", type=str, default="gradio")
+    parser.add_argument("--model", type=str, default="llama_adapter_v2")
+    parser.add_argument("--mode", type=str, default="prompt")
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_p", type=float, default=0.9)
     parser.add_argument("--context_length", type=int, default=0)
@@ -128,7 +128,7 @@ def config() -> argparse.Namespace:
     parser.add_argument("--test_end_idx", type=int, default=1000)
 
     # logging related
-    parser.add_argument("--result_dir", type=str, default="webarena_results_flam")
+    parser.add_argument("--result_dir", type=str, default="webarena_results_llama")
     args = parser.parse_args()
 
     # check the whether the action space is compatible with the observation space
@@ -396,7 +396,7 @@ if __name__ == "__main__":
     # 520, 521, 528, 529, 530, 531, 532, 571, 572, 573, 574, 575, 585, 586, 587, 588, 589, 
     # 653, 654, 655, 656, 657, 689, 690, 691, 692, 693, 792, 793, 794, 795, 796, 797, 798]
     for i in indices:
-        test_file_list.append(f"config_files\\{i}.json")
+        test_file_list.append(f"config_files/{i}.json")
         # test_file_list.append(f"web-agent-reasoning\\webarena_code\\config_files\\{i}.json")
     test_file_list = get_unfinished(test_file_list, args.result_dir)
     print(f"Total {len(test_file_list)} tasks left")

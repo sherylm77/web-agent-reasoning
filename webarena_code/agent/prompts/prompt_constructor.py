@@ -43,15 +43,27 @@ class PromptConstructor(object):
 
         """Return the require format for an API"""
         message: list[dict[str, str]] | str
-        if "huggingface" in self.lm_config.provider:
+        if "gradio" in self.lm_config.provider:
             message = f"{intro}\n\n"
             message += "Here are a few examples:\n"
             for example in examples:
                 message += f"Observation\n:{example[0]}\n\n"
                 message += f"Action: {example[1]}\n\n"
+
             message += "Now make prediction given the observation\n\n"
             message += f"Observation\n:{current}\n\n"
             message += "Action:"
+            return message
+                
+        elif "huggingface" in self.lm_config.provider:
+            message = f"{intro}\n\n"
+            message += "Here are a few examples:\n"
+            for example in examples:
+                message += f"{example[0]}\n\n"
+                message += f"{example[1]}\n\n"
+            # message += "Now make prediction given the observation\n\n"
+            message += f"{current}\n\n"
+            message += "The correct action is:"
             self.tokenizer.padding_side = "left" # For generation padding tokens should be on the left
             print(message)
             lang_x = self.tokenizer(
@@ -167,10 +179,10 @@ class DirectPromptConstructor(PromptConstructor):
         # input x
         current = template.format(
             objective=intent,
-            url=self.map_url_to_real(url),
-            observation=obs,
-            image=image_obs,
-            previous_action=previous_action_str,
+            # url=self.map_url_to_real(url),
+            # observation="",
+            # image=image_obs,
+            # previous_action=previous_action_str,
         )
 
         # make sure all keywords are replaced
@@ -216,8 +228,8 @@ class CoTPromptConstructor(PromptConstructor):
 
         obs = state_info["observation"][self.obs_modality]
         max_obs_length = self.lm_config.gen_config["max_obs_length"]
-        if max_obs_length:
-            obs = self.tokenizer.decode(self.tokenizer.encode(obs)[:max_obs_length])  # type: ignore[arg-type]
+        # if max_obs_length:
+        #     obs = self.tokenizer.decode(self.tokenizer.encode(obs)[:max_obs_length])  # type: ignore[arg-type]
 
         page = state_info["info"]["page"]
         url = page.url

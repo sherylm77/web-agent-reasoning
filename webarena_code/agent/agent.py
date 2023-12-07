@@ -10,6 +10,8 @@ from huggingface_hub import hf_hub_download
 import torch
 from PIL import Image
 
+from gradio_client import Client
+
 from agent.prompts import *
 from browser_env import Trajectory
 from browser_env.actions import (
@@ -131,10 +133,25 @@ class PromptAgent(Agent):
             trajectory, intent, meta_data
         )
         lm_config = self.lm_config
-        if lm_config.provider == "huggingface":
+        if lm_config.provider == "gradio":
             last_obs = trajectory[-1]["observation"] # get last state info dict from trajectory
             obs_image = Image.fromarray(last_obs["image"])
-            example_image = Image.open("C:\\Users\\Sheryl\\Documents\mmml\\web-agent-reasoning\\webarena_code\\example_imgs\\hp_fax.PNG")
+            img_filename = "example_imgs\\temp.png"
+            obs_image.save(img_filename)
+            print("prompt", prompt)
+            response = self.model.predict(
+				"example_imgs\\temp.png",	# str representing input in 'Input' Image component
+				prompt,	# str representing input in 'Prompt' Textbox component
+				lm_config.gen_config["max_tokens"],	# int | float representing input in 'Max length' Slider component
+				lm_config.gen_config["temperature"],	# int | float representing input in 'Temperature' Slider component
+				lm_config.gen_config["top_p"],	# int | float representing input in 'Top p' Slider component
+				fn_index=1
+            )         
+            print("response", response)
+        elif lm_config.provider == "huggingface":
+            last_obs = trajectory[-1]["observation"] # get last state info dict from trajectory
+            obs_image = Image.fromarray(last_obs["image"])
+            example_image = Image.open("example_imgs\\hp_fax.PNG")
             vision_x = [self.image_processor(example_image).unsqueeze(0), self.image_processor(obs_image).unsqueeze(0)]
             vision_x = torch.cat(vision_x, dim=0)
             vision_x = vision_x.unsqueeze(1).unsqueeze(0)
@@ -210,7 +227,14 @@ def construct_llm_config(args: argparse.Namespace) -> lm_config.LMConfig:
         llm_config.gen_config["max_tokens"] = args.max_tokens
         llm_config.gen_config["stop_token"] = args.stop_token
         llm_config.gen_config["max_obs_length"] = args.max_obs_length
-    if args.provider == "huggingface":
+    elif args.provider == "huggingface":
+        llm_config.gen_config["temperature"] = args.temperature
+        llm_config.gen_config["top_p"] = args.top_p
+        llm_config.gen_config["context_length"] = args.context_length
+        llm_config.gen_config["max_tokens"] = args.max_tokens
+        llm_config.gen_config["stop_token"] = args.stop_token
+        llm_config.gen_config["max_obs_length"] = args.max_obs_length
+    elif args.provider == "gradio":
         llm_config.gen_config["temperature"] = args.temperature
         llm_config.gen_config["top_p"] = args.top_p
         llm_config.gen_config["context_length"] = args.context_length
@@ -231,16 +255,19 @@ def construct_agent(args: argparse.Namespace) -> Agent:
     elif args.agent_type == "prompt":
         with open(args.instruction_path) as f:
             constructor_type = json.load(f)["meta_data"]["prompt_constructor"]
-        tokenizer = tiktoken.get_encoding(llm_config.model)
+        # tokenizer = tiktoken.get_encoding(llm_config.model)
         # tokenizer = tiktoken.encoding_for_model(llm_config.model)
         prompt_constructor = eval(constructor_type)(
-            args.instruction_path, lm_config=llm_config, tokenizer=tokenizer
+            args.instruction_path, lm_config=llm_config, tokenizer=None
         )
+        llama_model = Client("http://llama-adapter.opengvlab.com/")
         agent = PromptAgent(
-            action_set_tag=args.action_set_tag,
-            lm_config=llm_config,
-            prompt_constructor=prompt_constructor,
-        )
+                action_set_tag=args.action_set_tag,
+                lm_config=llm_config,
+                prompt_constructor=prompt_constructor,
+                model=llama_model,
+                tokenizer=None,
+            )
     elif args.agent_type == "generation":
         with open(args.instruction_path) as f:
             constructor_type = json.load(f)["meta_data"]["prompt_constructor"]
@@ -248,9 +275,9 @@ def construct_agent(args: argparse.Namespace) -> Agent:
             flamingo_model, image_processor, flam_tokenizer = create_model_and_transforms(
                 clip_vision_encoder_path="ViT-L-14",
                 clip_vision_encoder_pretrained="openai",
-                lang_encoder_path="anas-awadalla/mpt-1b-redpajama-200b",
-                tokenizer_path="anas-awadalla/mpt-1b-redpajama-200b",
-                cross_attn_every_n_layers=1
+                lang_encoder_path="anas-awadalla/mpt-7b",
+                tokenizer_path="anas-awadalla/mpt-7b",
+                cross_attn_every_n_layers=4
             )
 
             checkpoint_path = hf_hub_download("openflamingo/" + args.model, "checkpoint.pt")
